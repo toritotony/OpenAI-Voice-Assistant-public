@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Assistant</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
+</head>
+<body>
+    <h1>Voice Assistant</h1>
+    <button id="startButton">Start Assistant</button>
+    <button id="stopButton" disabled>Stop Assistant</button>
+    <div id="status">Please start to begin</div>
+    <div id="textOutput"></div>
+    <div id="audioOutput"></div>
+    <audio id="audioPlayer" controls style="display: none;"></audio>
+    <script>
+        let assistantActive = false;
+        let isTriggerCaptured = false;
+        let responseProcessed = false;
+
+        function updateStatusLabel(text) {
+            $("#status").text(text);
+        }
+
+        $("#startButton").click(function () {
+            if (!assistantActive) {
+                $("#status").text("Assistant started");
+                updateStatusLabel("Say trigger");
+
+                assistantActive = true;
+                $(this).prop("disabled", true);
+                $("#stopButton").prop("disabled", false);
+                startListening();
+            }
+        });
+
+        $("#stopButton").click(function () {
+            if (assistantActive) {
+                updateStatusLabel("Assistant stopped");
+                assistantActive = false;
+                isTriggerCaptured = false;
+                responseProcessed = false; // Reset responseProcessed status
+                $(this).prop("disabled", true);
+                $("#startButton").prop("disabled", false);
+                stopListening();
+            }
+        });
+
+        async function startListening() {
+            await $.get("/start");
+            checkForTriggerCapture();
+        }
+
+        async function stopListening() {
+            await $.get("/stop");
+            clearInterval(triggerCaptureInterval);
+        }
+
+        function checkForTriggerCapture() {
+            triggerCaptureInterval = setInterval(function () {
+                $.get("/get_response_status", function (data) {
+                    responseProcessed = data.response_processed;
+
+                    if (assistantActive && !isTriggerCaptured) {
+                        updateStatusLabel("Say trigger");
+                    } else if (assistantActive && isTriggerCaptured && !responseProcessed) {
+                        updateStatusLabel("Ask a question");
+                    } else if (assistantActive && isTriggerCaptured && responseProcessed) {
+                        updateStatusLabel("Response processed");
+                    }
+                });
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
